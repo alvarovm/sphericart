@@ -58,6 +58,7 @@ OPTION(SPHERICART_BUILD_TESTS "Build and run tests for Sphericart" OFF)
 OPTION(SPHERICART_OPENMP "Try to use OpenMP when compiling Sphericart" ON)
 OPTION(SPHERICART_ARCH_NATIVE "Try to use -march=native when compiling Sphericart" ON)
 OPTION(SPHERICART_ENABLE_CUDA "Are we building the CUDA backend of Sphericart?" ON)
+OPTION(SPHERICART_ENABLE_SYCL "Are we building the SYCL backend of Sphericart?" ON)
 
 set(LIB_INSTALL_DIR "lib" CACHE PATH "Path relative to CMAKE_INSTALL_PREFIX where to install libraries")
 set(BIN_INSTALL_DIR "bin" CACHE PATH "Path relative to CMAKE_INSTALL_PREFIX where to install DLL/binaries")
@@ -91,6 +92,98 @@ if(CMAKE_CUDA_COMPILER)
     set(CUDA_USE_STATIC_CUDA_RUNTIME OFF CACHE BOOL "" FORCE)
 else()
     message(STATUS "Could not find a CUDA compiler")
+endif()
+
+# Find SYCL
+if (SPHERICART_ENABLE_SYCL)
+    # Find Intel oneAPI Base Toolkit
+#    if(NOT DEFINED ONEAPI_ROOT)
+#        if(DEFINED ENV{ONEAPI_ROOT})
+#            set(ONEAPI_ROOT $ENV{ONEAPI_ROOT})
+#        else()
+#            set(ONEAPI_ROOT "/opt/intel/oneapi")
+#        endif()
+#    endif()
+#
+#    # Source Intel oneAPI environment if available
+#    if(EXISTS "${ONEAPI_ROOT}/setvars.sh")
+#        execute_process(
+#            COMMAND bash -c "source ${ONEAPI_ROOT}/setvars.sh > /dev/null 2>&1 && env"
+#            OUTPUT_VARIABLE ONEAPI_ENV
+#        )
+#        string(REGEX MATCHALL "([^=\n]+)=([^\n]*)" ONEAPI_ENV_MATCHES "${ONEAPI_ENV}")
+#        foreach(MATCH ${ONEAPI_ENV_MATCHES})
+#            string(REGEX REPLACE "([^=\n]+)=([^\n]*)" "\\1" KEY "${MATCH}")
+#            string(REGEX REPLACE "([^=\n]+)=([^\n]*)" "\\2" VALUE "${MATCH}")
+#            set(ENV{${KEY}} ${VALUE})
+#        endforeach()
+#    endif()
+#
+#    # Check for Intel SYCL compiler
+#    if(CMAKE_CXX_COMPILER_ID MATCHES "IntelLLVM")
+#        set(SYCL_COMPILER_FOUND TRUE)
+#    else()
+#        find_program(SYCL_COMPILER icpx)
+#        if(SYCL_COMPILER)
+#            set(SYCL_COMPILER_FOUND TRUE)
+#            set(CMAKE_CXX_COMPILER ${SYCL_COMPILER})
+#        endif()
+#    endif()
+#
+#    if(SYCL_COMPILER_FOUND)
+#        message(STATUS "Found SYCL compiler: ${CMAKE_CXX_COMPILER}")
+#        
+#        # Add SYCL include directories
+#        find_path(SYCL_INCLUDE_DIR
+#            NAMES 
+#                "CL/sycl.hpp"
+#                "sycl/sycl.hpp"
+#            PATHS
+#            "${ONEAPI_ROOT}/compiler/latest/linux/include"
+#            "${ONEAPI_ROOT}/compiler/latest/include"
+#            "/opt/intel/oneapi/compiler/latest/linux/include"
+#            "/opt/intel/oneapi/compiler/latest/include"
+#            "/usr/include"
+#            "/usr/local/include"
+#            ENV CPLUS_INCLUDE_PATH
+#        )
+#        
+#        if(SYCL_INCLUDE_DIR)
+            message(STATUS "Found SYCL include directory: ${SYCL_INCLUDE_DIR}")
+            include_directories(${SYCL_INCLUDE_DIR} ${SYCL_INCLUDE_DIR}/..)
+            
+            # Set SYCL-specific compiler flags
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl")
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsycl")
+            
+            # Add compile definitions
+            add_definitions(-DSPHERICART_USE_SYCL=1)
+            add_definitions(-DCL_TARGET_OPENCL_VERSION=300)
+            add_definitions(-DSYCL_LANGUAGE_VERSION=2020)
+            
+            # Add source files
+            list(APPEND COMMON_SOURCES 
+                "include/sphericart_sycl.hpp"
+                "src/sphericart_sycl.cpp"
+            )
+list(APPEND COMMON_SOURCES "include/sycl_base.hpp")
+list(APPEND COMMON_SOURCES "include/sphericart_sycl.hpp")
+
+list(APPEND COMMON_SOURCES "include/sphericart_impl_sycl.hpp")
+list(APPEND COMMON_SOURCES "src/sphericart_impl_sycl.cpp")
+
+list(APPEND COMMON_SOURCES "src/sycl_base.cpp")
+list(APPEND COMMON_SOURCES "src/sphericart_sycl.cpp")
+
+list(APPEND COMMON_SOURCES "src/sphericart_cuda_stub.cpp")
+#        else()
+#            message(WARNING "Could not find SYCL include directory. SYCL support will be disabled.")
+#            set(SPHERICART_ENABLE_SYCL OFF)
+#        endif()
+#    else()
+#        message(WARNING "Could not find SYCL compiler. SYCL support will be disabled.")
+#        set(SPHERICART_ENABLE_SYCL OFF)
+#    endif()
 endif()
 
 if (CMAKE_CUDA_COMPILER AND NOT SPHERICART_ENABLE_CUDA)
@@ -141,6 +234,34 @@ if (CMAKE_CUDA_COMPILER AND SPHERICART_ENABLE_CUDA)
     file(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/generated/tmp.cuh")
 endif()
 
+# Configure SYCL if enabled
+if (SPHERICART_ENABLE_SYCL AND SYCL_COMPILER_FOUND)
+    message(STATUS "Configuring SYCL target properties")
+    
+    # Add target-specific SYCL flags
+    target_compile_options(sphericart PRIVATE 
+        -fsycl 
+        -fsycl-device-code-split=per_kernel
+    )
+    target_link_options(sphericart PRIVATE 
+        -fsycl
+        -fsycl-device-code-split=per_kernel
+    )
+    
+    # Add target-specific include directories
+    target_include_directories(sphericart PRIVATE 
+        ${SYCL_INCLUDE_DIR}
+        ${SYCL_INCLUDE_DIR}/..
+    )
+    
+    # Add target-specific compile definitions
+    target_compile_definitions(sphericart PRIVATE 
+        SPHERICART_USE_SYCL=1
+        CL_TARGET_OPENCL_VERSION=300
+        SYCL_LANGUAGE_VERSION=2020
+    )
+endif()
+
 set_target_properties(sphericart PROPERTIES
     VERSION ${SPHERICART_VERSION}
     SOVERSION ${SPHERICART_VERSION_MAJOR}.${SPHERICART_VERSION_MINOR}
@@ -174,6 +295,11 @@ target_compile_definitions(sphericart PRIVATE sphericart_EXPORTS)
 # Handle optimization and OpenMP flags
 include(CheckCXXCompilerFlag)
 check_cxx_compiler_flag("-Wunknown-pragmas" COMPILER_SUPPORTS_WPRAGMAS)
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# Find OpenMP
 if (SPHERICART_OPENMP)
     find_package(OpenMP)
     if(OpenMP_CXX_FOUND)
