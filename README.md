@@ -84,8 +84,18 @@ The following cmake configuration options are available:
 - `-DSPHERICART_BUILD_TESTS=ON/OFF`: build C++ unit tests
 - `-DSPHERICART_BUILD_EXAMPLES=ON/OFF`: build C++ examples and benchmarks
 - `-DSPHERICART_OPENMP=ON/OFF`: enable OpenMP parallelism
+- `-DSPHERICART_SYCL=ON/OFF`: enable SYCL support
 - `-DCMAKE_INSTALL_PREFIX=<where/you/want/to/install>` set the root path for installation
+- `-DSPHERICART_SYCL=ON/OFF`: enable SYCL support
+- `-DCMAKE_CXX_FLAGS=" -fsycl -fsycl-targets=spir64"` : add compiler flags for SYCL support, `-fsycl-targets=spir64` for XPU devices
 
+To enable Kokkos example add `Kokkos_DIR` to environmental variable:
+```
+export Kokkos_DIR=/home/vama/soft/chem2/mace/kokkos/install
+```
+
+And add the following configuration flag to `cmake` command:
+- `-DKokkos_DEVICES=SYCL`: enable device for Kokkos backend
 
 ### Running tests and documentation
 
