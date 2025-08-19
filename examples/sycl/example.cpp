@@ -38,6 +38,10 @@ int main() {
     auto dsph_f = std::vector<double>(n_samples * 3 * (l_max + 1) * (l_max + 1), 0.0);
     auto ddsph_f = std::vector<double>(n_samples * 3 * 3 * (l_max + 1) * (l_max + 1), 0.0);
 
+    DEVICE_INIT(double, xyz_device, xyz_f.data(), xyz_f.size())
+    DEVICE_INIT(double, sph_device, sph_f.data(), sph_f.size())
+    DEVICE_INIT(double, dsph_device, dsph_f.data(), dsph_f.size())
+    DEVICE_INIT(double, ddsph_device, ddsph_f.data(), ddsph_f.size())
     /* ===== API calls ===== */
 
     // internal buffers and numerical factors are initalized at construction
@@ -46,29 +50,32 @@ int main() {
 //
 //    // allcate device memory
 //    // calculation examples
-    calculator_sycl.compute(xyz_f, n_samples, sph_f); // no gradients
+    calculator_sycl.compute(xyz_device, n_samples, sph_device); // no gradients
     calculator.compute(xyz, sph);                      // no gradients
-    //int size2 =
-    //    (l_max + 1) * (l_max + 1); // Size of the second+third dimensions in derivative arrays
-    //for (size_t i_sample = 0; i_sample < n_samples; i_sample++) {
-    //    for (size_t l = 0; l < (l_max + 1); l++) {
-    //        for (int m = -static_cast<int>(l); m <= static_cast<int>(l); m++) {
+    DEVICE_GET(double, sph_f.data(), sph_device, sph_f.size())
+    int size2 =
+       (l_max + 1) * (l_max + 1); // Size of the second+third dimensions in derivative arrays
+    for (size_t i_sample = 0; i_sample < n_samples; i_sample++) {
+       for (size_t l = 0; l < (l_max + 1); l++) {
+           for (int m = -static_cast<int>(l); m <= static_cast<int>(l); m++) {
 
-    //                printf(
-    //                    "SPH: %e , %e\n",
-    //                    sph_f[size2 * i_sample + l * l + l + m],
-    //                    sph[size2 * i_sample + l * l + l + m]
-    //                );
-    //        }
-    //    }
-    //}
-    //printf("computing gradients \n");
+                   printf(
+                       "SPH: %e , %e\n",
+                       sph_f[size2 * i_sample + l * l + l + m],
+                       sph[size2 * i_sample + l * l + l + m]
+                   );
+           }
+       }
+    }
+    printf("computing gradients \n");
     calculator.compute_with_gradients(
         xyz, sph, dsph
     ); // with gradients
     calculator_sycl.compute_with_gradients(
-        xyz_f, n_samples, sph_f, dsph_f
+        xyz_device, n_samples, sph_device, dsph_device
     ); // with gradients00
+    DEVICE_GET(double, sph_f.data(), sph_device, sph_f.size())
+    DEVICE_GET(double, dsph_f.data(), dsph_device, dsph_f.size())
     /* ===== check results ===== */
 
     double dsph_error = 0.0, dsph_norm = 0.0;

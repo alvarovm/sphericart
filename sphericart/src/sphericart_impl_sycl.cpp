@@ -178,16 +178,16 @@ inline void write_buffers(
 */
 template <typename scalar_t>
 void spherical_harmonics_kernel(
-    const scalar_t* xyz,
+    const scalar_t* xyz_acc,
     int nedges,
     const scalar_t* prefactors,
     int l_max,
     bool requires_grad,
     bool requires_hessian,
     bool normalize,
-    scalar_t* sph,
-    scalar_t* dsph,
-    scalar_t* ddsph
+    scalar_t* sph_acc,
+    scalar_t* dsph_acc,
+    scalar_t* ddsph_acc
 ) {
     int ntotal = (l_max + 1) * (l_max + 1);
     int nprefactors =  (int)(l_max + 1) * (l_max + 2);
@@ -204,11 +204,11 @@ void spherical_harmonics_kernel(
     int groups_y = find_num_blocks(nedges, static_cast<int>(local_range[1]));
     sycl::range<2> global_range(local_range[0], groups_y * local_range[1]);
 
-    DEVICE_INIT(scalar_t, xyz_acc, xyz, nedges * 3);
+    // DEVICE_INIT(scalar_t, xyz_acc, xyz, nedges * 3);
     DEVICE_INIT(scalar_t, prefactors_acc, prefactors, nprefactors);
-    scalar_t *sph_acc = sycl::malloc_device<scalar_t>( nedges * ntotal, q);
-    scalar_t *dsph_acc = sycl::malloc_device<scalar_t>( requires_grad ? 3 * nedges * ntotal : 1, q);
-    scalar_t *ddsph_acc = sycl::malloc_device<scalar_t>( requires_hessian ? 9 * nedges * ntotal : 1, q);
+    // scalar_t *sph_acc = sycl::malloc_device<scalar_t>( nedges * ntotal, q);
+    // scalar_t *dsph_acc = sycl::malloc_device<scalar_t>( requires_grad ? 3 * nedges * ntotal : 1, q);
+    // scalar_t *ddsph_acc = sycl::malloc_device<scalar_t>( requires_hessian ? 9 * nedges * ntotal : 1, q);
     
     int nl = sycl::max((HARDCODED_LMAX + 1) * (HARDCODED_LMAX + 1), 2 * l_max + 1);
     const int local_y = local_range[1];
@@ -556,20 +556,20 @@ void spherical_harmonics_kernel(
     });
     q.wait();
 
-    q.submit([&](sycl::handler& h) {
-        h.memcpy(&sph[0], sph_acc, nedges * ntotal * sizeof(scalar_t));
-    });
+    // q.submit([&](sycl::handler& h) {
+    //     h.memcpy(&sph[0], sph_acc, nedges * ntotal * sizeof(scalar_t));
+    // });
     
-    if(requires_grad) {
-        q.submit([&](sycl::handler& h) {
-            h.memcpy(&dsph[0], dsph_acc, 3 * nedges * ntotal * sizeof(scalar_t));
-        });
-    }
-    if(requires_hessian) {
-        q.submit([&](sycl::handler& h) {
-            h.memcpy(&ddsph[0], ddsph_acc, 3 * nedges * ntotal * sizeof(scalar_t));
-        });
-    }
+    // if(requires_grad) {
+    //     q.submit([&](sycl::handler& h) {
+    //         h.memcpy(&dsph[0], dsph_acc, 3 * nedges * ntotal * sizeof(scalar_t));
+    //     });
+    // }
+    // if(requires_hessian) {
+    //     q.submit([&](sycl::handler& h) {
+    //         h.memcpy(&ddsph[0], ddsph_acc, 3 * nedges * ntotal * sizeof(scalar_t));
+    //     });
+    // }
     
 }
 
