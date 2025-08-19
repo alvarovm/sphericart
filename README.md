@@ -91,7 +91,7 @@ The following cmake configuration options are available:
 
 To enable Kokkos example add `Kokkos_DIR` to environmental variable:
 ```
-export Kokkos_DIR=/home/vama/soft/chem2/mace/kokkos/install
+export Kokkos_DIR=/mypath/to/kokkos/install
 ```
 
 And add the following configuration flag to `cmake` command:
