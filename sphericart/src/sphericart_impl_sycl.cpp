@@ -100,7 +100,7 @@ inline void write_buffers(
     if (edge_idx < nedges) {
        auto item = syclex::this_work_item::get_nd_item<2>();
        for (int i = item.get_local_id(0); i < n_elements; i += item.get_local_range(0)) {
-            sph[edge_idx * n_total + offset + i] =  buffer_sph[get_index(i)];
+            sph[edge_idx * n_total + offset + i] = buffer_sph[get_index(i)];
             if (requires_hessian) {
                 auto tmp_dx = buffer_dsph_x[get_index(i)];
                 auto tmp_dy = buffer_dsph_y[get_index(i)];
@@ -204,11 +204,7 @@ void spherical_harmonics_kernel(
     int groups_y = find_num_blocks(nedges, static_cast<int>(local_range[1]));
     sycl::range<2> global_range(local_range[0], groups_y * local_range[1]);
 
-    // DEVICE_INIT(scalar_t, xyz_acc, xyz, nedges * 3);
     DEVICE_INIT(scalar_t, prefactors_acc, prefactors, nprefactors);
-    // scalar_t *sph_acc = sycl::malloc_device<scalar_t>( nedges * ntotal, q);
-    // scalar_t *dsph_acc = sycl::malloc_device<scalar_t>( requires_grad ? 3 * nedges * ntotal : 1, q);
-    // scalar_t *ddsph_acc = sycl::malloc_device<scalar_t>( requires_hessian ? 9 * nedges * ntotal : 1, q);
     
     int nl = sycl::max((HARDCODED_LMAX + 1) * (HARDCODED_LMAX + 1), 2 * l_max + 1);
     const int local_y = local_range[1];
@@ -324,253 +320,236 @@ void spherical_harmonics_kernel(
                if (item.get_local_id(0) == 0) {
                  if (l_max >= 1) {
                        HARDCODED_SPH_MACRO(1, x, y, z, x2, y2, z2, buffer_sph, get_index);
-                       if (requires_grad) {
-                           HARDCODED_SPH_DERIVATIVE_MACRO(
-                               1, x, y, z, x2, y2, z2, buffer_sph, buffer_dsph_x, buffer_dsph_y, buffer_dsph_z, get_index
+                        if (requires_grad) {
+                            HARDCODED_SPH_DERIVATIVE_MACRO(
+                                1, x, y, z, x2, y2, z2, buffer_sph, buffer_dsph_x, buffer_dsph_y, buffer_dsph_z, get_index
+                            );
+                        }
+
+                       if (requires_hessian) {
+                           HARDCODED_SPH_SECOND_DERIVATIVE_MACRO(
+                               1,
+                               buffer_sph,
+                               buffer_dsph_dxdx,
+                               buffer_dsph_dxdy,
+                               buffer_dsph_dxdz,
+                               buffer_dsph_dydx,
+                               buffer_dsph_dydy,
+                               buffer_dsph_dydz,
+                               buffer_dsph_dzdx,
+                               buffer_dsph_dzdy,
+                               buffer_dsph_dzdz,
+                               get_index
                            );
                        }
+                  } else {
+                       COMPUTE_SPH_L0(buffer_sph, get_index);
+                       if (requires_grad) {
+                           COMPUTE_SPH_DERIVATIVE_L0(
+                               buffer_sph, buffer_dsph_x, buffer_dsph_y, buffer_dsph_z, get_index
+                           );
 
-                      if (requires_hessian) {
-                          HARDCODED_SPH_SECOND_DERIVATIVE_MACRO(
-                              1,
-                              buffer_sph,
-                              buffer_dsph_dxdx,
-                              buffer_dsph_dxdy,
-                              buffer_dsph_dxdz,
-                              buffer_dsph_dydx,
-                              buffer_dsph_dydy,
-                              buffer_dsph_dydz,
-                              buffer_dsph_dzdx,
-                              buffer_dsph_dzdy,
-                              buffer_dsph_dzdz,
-                              get_index
-                          );
-                      }
-                 } else {
-                      COMPUTE_SPH_L0(buffer_sph, get_index);
-                      if (requires_grad) {
-                          COMPUTE_SPH_DERIVATIVE_L0(
-                              buffer_sph, buffer_dsph_x, buffer_dsph_y, buffer_dsph_z, get_index
-                          );
+                           if (requires_hessian) {
+                               COMPUTE_SPH_SECOND_DERIVATIVE_L0(
+                                   buffer_sph,
+                                   buffer_dsph_dxdx,
+                                   buffer_dsph_dxdy,
+                                   buffer_dsph_dxdz,
+                                   buffer_dsph_dydx,
+                                   buffer_dsph_dydy,
+                                   buffer_dsph_dydz,
+                                   buffer_dsph_dzdx,
+                                   buffer_dsph_dzdy,
+                                   buffer_dsph_dzdz,
+                                   get_index
+                               );
+                           }
+                       }
+                   }
+               }
+               item.barrier(sycl::access::fence_space::local_space);
+     
+               // write out the values of the hardcoded derivatives from local memory into
+               // global memory.
+               write_buffers(
+                   edge_idx,
+                   nedges,
+                   x,
+                   y,
+                   z,
+                   ir,
+                   (ml + 1) * (ml + 1),
+                   0,
+                   buffer_sph,
+                   buffer_dsph_x,
+                   buffer_dsph_y,
+                   buffer_dsph_z,
+                   buffer_dsph_dxdx,
+                   buffer_dsph_dxdy,
+                   buffer_dsph_dxdz,
+                   buffer_dsph_dydx,
+                   buffer_dsph_dydy,
+                   buffer_dsph_dydz,
+                   buffer_dsph_dzdx,
+                   buffer_dsph_dzdy,
+                   buffer_dsph_dzdz,
+                   sph_acc,
+                   dsph_acc,
+                   ddsph_acc,
+                   ntotal,
+                   requires_grad,
+                   requires_hessian,
+                   normalize
+               );
 
-                          if (requires_hessian) {
-                              COMPUTE_SPH_SECOND_DERIVATIVE_L0(
-                                  buffer_sph,
-                                  buffer_dsph_dxdx,
-                                  buffer_dsph_dxdy,
-                                  buffer_dsph_dxdz,
-                                  buffer_dsph_dydx,
-                                  buffer_dsph_dydy,
-                                  buffer_dsph_dydz,
-                                  buffer_dsph_dzdx,
-                                  buffer_dsph_dzdy,
-                                  buffer_dsph_dzdz,
-                                  get_index
-                              );
-                          }
-                      }
-                  }
-              }
-              item.barrier(sycl::access::fence_space::local_space);
-    
-              // write out the values of the hardcoded derivatives from local memory into
-              // global memory.
-              write_buffers(
-                  edge_idx,
-                  nedges,
-                  x,
-                  y,
-                  z,
-                  ir,
-                  (ml + 1) * (ml + 1),
-                  0,
-                  buffer_sph,
-                  buffer_dsph_x,
-                  buffer_dsph_y,
-                  buffer_dsph_z,
-                  buffer_dsph_dxdx,
-                  buffer_dsph_dxdy,
-                  buffer_dsph_dxdz,
-                  buffer_dsph_dydx,
-                  buffer_dsph_dydy,
-                  buffer_dsph_dydz,
-                  buffer_dsph_dzdx,
-                  buffer_dsph_dzdy,
-                  buffer_dsph_dzdz,
-                  sph_acc,
-                  dsph_acc,
-                  ddsph_acc,
-                  ntotal,
-                  requires_grad,
-                  requires_hessian,
-                  normalize
-              );
+               // Generic spherical harmonics for l > HARDCODED_LMAX
+               int size_q = (l_max + 1) * (l_max + 2) / 2;
+               int k = (HARDCODED_LMAX + 1) * (HARDCODED_LMAX + 2) / 2;
+               scalar_t* qlmk = buffer_prefactors + size_q + k;
+               scalar_t* pk = buffer_prefactors + k;
+               int base_index = (HARDCODED_LMAX + 1) * (HARDCODED_LMAX + 1);
+               for (int l = HARDCODED_LMAX + 1; l < l_max + 1; l += 1) {
+                   int sph_offset = l * local_y;
 
-              // Generic spherical harmonics for l > HARDCODED_LMAX
-              int size_q = (l_max + 1) * (l_max + 2) / 2;
-              int k = (HARDCODED_LMAX + 1) * (HARDCODED_LMAX + 2) / 2;
-              scalar_t* qlmk = buffer_prefactors + size_q + k;
-              scalar_t* pk = buffer_prefactors + k;
-              int base_index = (HARDCODED_LMAX + 1) * (HARDCODED_LMAX + 1);
-              for (int l = HARDCODED_LMAX + 1; l < l_max + 1; l += 1) {
-                  int sph_offset = l * local_y;
-
-                  // clear out temporary storage buffers
-                  clear_buffers(
-                      2 * l + 1,
-                      buffer_sph,
-                      buffer_dsph_x,
-                      buffer_dsph_y,
-                      buffer_dsph_z,
-                      buffer_dsph_dxdx,
-                      buffer_dsph_dxdy,
-                      buffer_dsph_dxdz,
-                      buffer_dsph_dydx,
-                      buffer_dsph_dydy,
-                      buffer_dsph_dydz,
-                      buffer_dsph_dzdx,
-                      buffer_dsph_dzdy,
-                      buffer_dsph_dzdz,
-                      requires_grad,
-                      requires_hessian
-                  );
+                   // clear out temporary storage buffers
+                   clear_buffers(
+                       2 * l + 1,
+                       buffer_sph,
+                       buffer_dsph_x,
+                       buffer_dsph_y,
+                       buffer_dsph_z,
+                       buffer_dsph_dxdx,
+                       buffer_dsph_dxdy,
+                       buffer_dsph_dxdz,
+                       buffer_dsph_dydx,
+                       buffer_dsph_dydy,
+                       buffer_dsph_dydz,
+                       buffer_dsph_dzdx,
+                       buffer_dsph_dzdy,
+                       buffer_dsph_dzdz,
+                       requires_grad,
+                       requires_hessian
+                   );
 //
-               // Currently only one work-item computes the spherical harmonics.
-                  if (item.get_local_id(0) == 0) {
-                          if (requires_grad && requires_hessian) {
-                              generic_sph_l_channel<scalar_t, true, true, HARDCODED_LMAX, get_index>(
-                                  l,
-                                  x,
-                                  y,
-                                  z,
-                                  rxy,
-                                  pk,
-                                  qlmk,
-                                  buffer_c,
-                                  buffer_s,
-                                  buffer_twomz,
-                                  buffer_sph + sph_offset,
-                                  buffer_dsph_x + sph_offset,
-                                  buffer_dsph_y + sph_offset,
-                                  buffer_dsph_z + sph_offset,
-                                  buffer_dsph_dxdx + sph_offset,
-                                  buffer_dsph_dxdy + sph_offset,
-                                  buffer_dsph_dxdz + sph_offset,
-                                  buffer_dsph_dydx + sph_offset,
-                                  buffer_dsph_dydy + sph_offset,
-                                  buffer_dsph_dydz + sph_offset,
-                                  buffer_dsph_dzdx + sph_offset,
-                                  buffer_dsph_dzdy + sph_offset,
-                                  buffer_dsph_dzdz + sph_offset
-                              );
-                          } else if (requires_grad) {
-                              generic_sph_l_channel<scalar_t, true, false, HARDCODED_LMAX, get_index>(
-                                  l,
-                                  x,
-                                  y,
-                                  z,
-                                  rxy,
-                                  pk,
-                                  qlmk,
-                                  buffer_c,
-                                  buffer_s,
-                                  buffer_twomz,
-                                  buffer_sph + sph_offset,
-                                  buffer_dsph_x + sph_offset,
-                                  buffer_dsph_y + sph_offset,
-                                  buffer_dsph_z + sph_offset,
-                                  buffer_dsph_dxdx,
-                                  buffer_dsph_dxdy,
-                                  buffer_dsph_dxdz,
-                                  buffer_dsph_dydx,
-                                  buffer_dsph_dydy,
-                                  buffer_dsph_dydz,
-                                  buffer_dsph_dzdx,
-                                  buffer_dsph_dzdy,
-                                  buffer_dsph_dzdz // these are nullpointers
-                              );
-                          } else {
-                              generic_sph_l_channel<scalar_t, false, false, HARDCODED_LMAX, get_index>(
-                                  l,
-                                  x,
-                                  y,
-                                  z,
-                                  rxy,
-                                  pk,
-                                  qlmk,
-                                  buffer_c,
-                                  buffer_s,
-                                  buffer_twomz,
-                                  buffer_sph+ sph_offset,
-                                  buffer_dsph_x,
-                                  buffer_dsph_y,
-                                  buffer_dsph_z,
-                                  buffer_dsph_dxdx,
-                                  buffer_dsph_dxdy,
-                                  buffer_dsph_dxdz,
-                                  buffer_dsph_dydx,
-                                  buffer_dsph_dydy,
-                                  buffer_dsph_dydz,
-                                  buffer_dsph_dzdx,
-                                  buffer_dsph_dzdy,
-                                  buffer_dsph_dzdz // these are nullpointers
-                              );
-                         }
-                      }
-               // write out temporary storage buffers
-                      write_buffers(
-                          edge_idx,
-                          nedges,
-                          x,
-                          y,
-                          z,
-                          ir,
-                          2 * l + 1,
-                          base_index,
-                          buffer_sph,
-                          buffer_dsph_x,
-                          buffer_dsph_y,
-                          buffer_dsph_z,
-                          buffer_dsph_dxdx,
-                          buffer_dsph_dxdy,
-                          buffer_dsph_dxdz,
-                          buffer_dsph_dydx,
-                          buffer_dsph_dydy,
-                          buffer_dsph_dydz,
-                          buffer_dsph_dzdx,
-                          buffer_dsph_dzdy,
-                          buffer_dsph_dzdz,
-                          sph_acc,
-                          dsph_acc,
-                          ddsph_acc,
-                          ntotal,
-                          requires_grad,
-                          requires_hessian,
-                          normalize
-                      );
+                // Currently only one work-item computes the spherical harmonics.
+                   if (item.get_local_id(0) == 0) {
+                           if (requires_grad && requires_hessian) {
+                               generic_sph_l_channel<scalar_t, true, true, HARDCODED_LMAX, get_index>(
+                                   l,
+                                   x,
+                                   y,
+                                   z,
+                                   rxy,
+                                   pk,
+                                   qlmk,
+                                   buffer_c,
+                                   buffer_s,
+                                   buffer_twomz,
+                                   buffer_sph + sph_offset,
+                                   buffer_dsph_x + sph_offset,
+                                   buffer_dsph_y + sph_offset,
+                                   buffer_dsph_z + sph_offset,
+                                   buffer_dsph_dxdx + sph_offset,
+                                   buffer_dsph_dxdy + sph_offset,
+                                   buffer_dsph_dxdz + sph_offset,
+                                   buffer_dsph_dydx + sph_offset,
+                                   buffer_dsph_dydy + sph_offset,
+                                   buffer_dsph_dydz + sph_offset,
+                                   buffer_dsph_dzdx + sph_offset,
+                                   buffer_dsph_dzdy + sph_offset,
+                                   buffer_dsph_dzdz + sph_offset
+                               );
+                           } else if (requires_grad) {
+                               generic_sph_l_channel<scalar_t, true, false, HARDCODED_LMAX, get_index>(
+                                   l,
+                                   x,
+                                   y,
+                                   z,
+                                   rxy,
+                                   pk,
+                                   qlmk,
+                                   buffer_c,
+                                   buffer_s,
+                                   buffer_twomz,
+                                   buffer_sph + sph_offset,
+                                   buffer_dsph_x + sph_offset,
+                                   buffer_dsph_y + sph_offset,
+                                   buffer_dsph_z + sph_offset,
+                                   buffer_dsph_dxdx,
+                                   buffer_dsph_dxdy,
+                                   buffer_dsph_dxdz,
+                                   buffer_dsph_dydx,
+                                   buffer_dsph_dydy,
+                                   buffer_dsph_dydz,
+                                   buffer_dsph_dzdx,
+                                   buffer_dsph_dzdy,
+                                   buffer_dsph_dzdz // these are nullpointers
+                               );
+                           } else {
+                               generic_sph_l_channel<scalar_t, false, false, HARDCODED_LMAX, get_index>(
+                                   l,
+                                   x,
+                                   y,
+                                   z,
+                                   rxy,
+                                   pk,
+                                   qlmk,
+                                   buffer_c,
+                                   buffer_s,
+                                   buffer_twomz,
+                                   buffer_sph+ sph_offset,
+                                   buffer_dsph_x,
+                                   buffer_dsph_y,
+                                   buffer_dsph_z,
+                                   buffer_dsph_dxdx,
+                                   buffer_dsph_dxdy,
+                                   buffer_dsph_dxdz,
+                                   buffer_dsph_dydx,
+                                   buffer_dsph_dydy,
+                                   buffer_dsph_dydz,
+                                   buffer_dsph_dzdx,
+                                   buffer_dsph_dzdy,
+                                   buffer_dsph_dzdz // these are nullpointers
+                               );
+                          }
+                       }
+////                // write out temporary storage buffers
+                       write_buffers(
+                           edge_idx,
+                           nedges,
+                           x,
+                           y,
+                           z,
+                           ir,
+                           2 * l + 1,
+                           base_index,
+                           buffer_sph,
+                           buffer_dsph_x,
+                           buffer_dsph_y,
+                           buffer_dsph_z,
+                           buffer_dsph_dxdx,
+                           buffer_dsph_dxdy,
+                           buffer_dsph_dxdz,
+                           buffer_dsph_dydx,
+                           buffer_dsph_dydy,
+                           buffer_dsph_dydz,
+                           buffer_dsph_dzdx,
+                           buffer_dsph_dzdy,
+                           buffer_dsph_dzdz,
+                           sph_acc,
+                           dsph_acc,
+                           ddsph_acc,
+                           ntotal,
+                           requires_grad,
+                           requires_hessian,
+                           normalize
+                       );
 
-                      base_index += 2 * l + 1;
-                      qlmk += l + 1;
-                      pk += l + 1;
-             }
-    });
-    q.wait();
-
-    // q.submit([&](sycl::handler& h) {
-    //     h.memcpy(&sph[0], sph_acc, nedges * ntotal * sizeof(scalar_t));
-    // });
-    
-    // if(requires_grad) {
-    //     q.submit([&](sycl::handler& h) {
-    //         h.memcpy(&dsph[0], dsph_acc, 3 * nedges * ntotal * sizeof(scalar_t));
-    //     });
-    // }
-    // if(requires_hessian) {
-    //     q.submit([&](sycl::handler& h) {
-    //         h.memcpy(&ddsph[0], ddsph_acc, 3 * nedges * ntotal * sizeof(scalar_t));
-    //     });
-    // }
-    
+                       base_index += 2 * l + 1;
+                       qlmk += l + 1;
+                       pk += l + 1;
+              }
+     });
 }
 
 template void spherical_harmonics_kernel<float>(

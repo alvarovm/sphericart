@@ -22,13 +22,11 @@
 // using namespace sphericart::sycl;
 
 
-namespace sphericart {
-/* @endcond */
 
 /**
  * The `sphericart::sycl` namespace contains the SYCL API for `sphericart`.
  */
-namespace intel {
+using namespace sphericart::intel;
 
 template <typename T> SphericalHarmonics<T>::SphericalHarmonics(size_t l_max) {
     /*
@@ -62,18 +60,6 @@ template <typename T> SphericalHarmonics<T>::~SphericalHarmonics() {
     }
 }
 
-// template <typename T>
-// void SphericalHarmonics<T>::compute_internal(
-//     const std::vector<T>& xyz,
-//     const T* xyz,
-//     const size_t n_samples,
-//     bool compute_with_gradients,
-//     bool compute_with_hessian,
-//     T* sph,
-//     T* dsph,
-//     T* ddsph
-// //    cudaStream_t sycl_stream
-// ) {
 template <typename T>
 void SphericalHarmonics<T>::compute_internal(
     const T* xyz,
@@ -83,13 +69,6 @@ void SphericalHarmonics<T>::compute_internal(
     T*  sph,
     T*  dsph,
     T*  ddsph
-    // const std::vector<T>& xyz,
-    // const size_t n_samples,
-    // bool compute_with_gradients,
-    // bool compute_with_hessian,
-    // std::vector<T>&  sph,
-    // std::vector<T>&  dsph,
-    // std::vector<T>&  ddsph
 ) {
      sphericart::intel::spherical_harmonics_sycl_base<T>(
         xyz,
@@ -113,7 +92,7 @@ void SphericalHarmonics<T>::compute(
     const size_t n_samples, 
     T* sph
 ) {
-// void SphericalHarmonics<T>::compute(const T* xyz, const size_t n_samples, T* sph) {
+
     std::vector<T> ddsph;
     std::vector<T> dsph;
     SphericalHarmonics<T>::compute_internal(
@@ -126,9 +105,6 @@ void SphericalHarmonics<T>::compute(
         ddsph.data() );
 }
 
-// template <typename T>
-// void SphericalHarmonics<T>::compute_with_gradients(
-//     const T* xyz, const size_t n_samples, T* sph, T* dsph) {
 template <typename T>
 void SphericalHarmonics<T>::compute_with_gradients(
     const T*  xyz, 
@@ -149,9 +125,6 @@ void SphericalHarmonics<T>::compute_with_gradients(
     );
 }
 
-// template <typename T>
-// void SphericalHarmonics<T>::compute_with_hessians(
-//     const T* xyz, const size_t n_samples, T* sph, T* dsph, T* ddsph) {
 template <typename T>
 void SphericalHarmonics<T>::compute_with_hessians(
     const T*  xyz, 
@@ -159,9 +132,9 @@ void SphericalHarmonics<T>::compute_with_hessians(
     T*  sph, 
     T*  dsph, 
     T*  ddsph) {
-    // SphericalHarmonics<T>::compute_internal(
-    //     xyz, n_samples, true, true, sph, dsph, ddsph
-    // );
+    SphericalHarmonics<T>::compute_internal(
+         xyz, n_samples, true, true, sph, dsph, ddsph
+    );
 }
 
 template <typename T>
@@ -176,5 +149,3 @@ template class sphericart::intel::SphericalHarmonics<double>;
 template class sphericart::intel::SolidHarmonics<float>;
 template class sphericart::intel::SolidHarmonics<double>;
 
-}
-}
