@@ -95,9 +95,9 @@ int main() {
             dsph_error += (d0 - d0_f)*(d0 - d0_f);
             dsph_error += (d1 - d1_f)*(d1 - d1_f);
             dsph_error += (d2 - d2_f)*(d2 - d2_f);
-            dsph_norm += d0 * d0_f;
-            dsph_norm += d1 * d1_f;
-            dsph_norm += d2 * d2_f;
+            dsph_norm += d0 * d0;
+            dsph_norm += d1 * d1;
+            dsph_norm += d2 * d2;
         }
     }
     printf("CPU vs GPU relative error DSPH: %12.8e\n", sqrt(dsph_error / dsph_norm));
