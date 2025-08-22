@@ -18,11 +18,6 @@
 #include "sphericart_sycl.hpp"
 #include "templates_core.hpp"
 #include "sycl_base.hpp"
-
-// using namespace sphericart::sycl;
-
-
-
 /**
  * The `sphericart::sycl` namespace contains the SYCL API for `sphericart`.
  */
