@@ -549,6 +549,30 @@ void spherical_harmonics_kernel(
                        pk += l + 1;
               }
      });
+
+    q.wait();
+
+    FREE(prefactors_acc);
+
+    FREE( buffer_c);
+    FREE( buffer_s);
+    FREE( buffer_twomz);
+    FREE( buffer_prefactors);
+    FREE( buffer_sph);
+
+    FREE( buffer_dsph_x);
+    FREE( buffer_dsph_y);
+    FREE( buffer_dsph_z);
+
+    FREE( buffer_dsph_dxdx);
+    FREE( buffer_dsph_dxdy);
+    FREE( buffer_dsph_dxdz);
+    FREE( buffer_dsph_dydx);
+    FREE( buffer_dsph_dydy);
+    FREE( buffer_dsph_dydz);
+    FREE( buffer_dsph_dzdx);
+    FREE( buffer_dsph_dzdy);
+    FREE( buffer_dsph_dzdz);
 }
 
 template void spherical_harmonics_kernel<float>(

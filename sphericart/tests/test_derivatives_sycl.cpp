@@ -20,11 +20,6 @@ bool check_gradient_call(int l_max, C<DTYPE>& calculator, const std::vector<DTYP
     int n_samples = xyz_host.size() / 3;
     int n_sph = (l_max + 1) * (l_max + 1);
 
-//    std::vector<DTYPE> sph_plus;
-//    std::vector<DTYPE> sph_minus;
- //   std::vector<DTYPE> sph;
- //   std::vector<DTYPE> dsph;
- //   sycl::queue& q = *sycl_get_queue();
 
     DEVICE_INIT(DTYPE, xyz, xyz_host.data(), xyz_host.size());
     
@@ -48,6 +43,8 @@ bool check_gradient_call(int l_max, C<DTYPE>& calculator, const std::vector<DTYP
         }
         DEVICE_INIT(DTYPE, xyz_plus, xyz_plus_host.data(), xyz_plus_host.size());
         calculator.compute(xyz_plus, n_samples, sph_plus);
+        DEVICE_GET(DTYPE, sph_plus_host.data(), sph_plus, sph_plus_host.size());
+        FREE(xyz_plus);
 
         std::vector<DTYPE> xyz_minus_host = xyz_host;
         for (int i_sample = 0; i_sample < n_samples; i_sample++) {
@@ -55,10 +52,9 @@ bool check_gradient_call(int l_max, C<DTYPE>& calculator, const std::vector<DTYP
         }
         DEVICE_INIT(DTYPE, xyz_minus, xyz_minus_host.data(), xyz_minus_host.size());
         calculator.compute(xyz_minus, n_samples, sph_minus);
-
-        DEVICE_GET(DTYPE, sph_host.data(), sph, sph_host.size());
         DEVICE_GET(DTYPE, sph_minus_host.data(), sph_minus, sph_minus_host.size());
-        DEVICE_GET(DTYPE, sph_plus_host.data(), sph_plus, sph_plus_host.size());
+        FREE(xyz_minus);
+
 
         for (int i_sample = 0; i_sample < n_samples; i_sample++) {
             for (int i_sph = 0; i_sph < n_sph; i_sph++) {
@@ -77,6 +73,10 @@ bool check_gradient_call(int l_max, C<DTYPE>& calculator, const std::vector<DTYP
             }
         }
     }
+    FREE(sph_plus);
+    FREE(sph_minus);
+    FREE(sph);
+    FREE(dsph);
 //    printf("computing gradients \n");
 //    for (size_t i_sample = 0; i_sample < n_samples; i_sample++) {
 //        for (int i_sph = 0; i_sph < n_sph; i_sph++) {
