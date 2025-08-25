@@ -186,7 +186,7 @@ private:
   mutable std::mutex m_mutex;
 
   dev_mgr() {
-    auto devices = sycl::device::get_devices(sycl::info::device_type::cpu);
+    auto devices = sycl::device::get_devices(sycl::info::device_type::gpu);
     if (devices.empty()) {
       throw std::runtime_error("No SYCL GPU devices found.");
     }

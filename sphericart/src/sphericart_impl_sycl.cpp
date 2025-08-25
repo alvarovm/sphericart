@@ -173,8 +173,7 @@ inline void write_buffers(
 }
 
 /*
-    CUDA kernel for computing Cartesian spherical harmonics and their
-   derivatives.
+    SYCL kernel for computing Cartesian spherical harmonics and their derivatives.
 */
 template <typename scalar_t>
 void spherical_harmonics_kernel(
