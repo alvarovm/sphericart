@@ -23,20 +23,23 @@ bool check_gradient_call(int l_max, C<DTYPE>& calculator, const std::vector<DTYP
 
     DEVICE_INIT(DTYPE, xyz, xyz_host.data(), xyz_host.size());
     
-    MALLOC(DTYPE, sph_plus, n_samples * (l_max + 1) * (l_max + 1)  );
-    MALLOC(DTYPE, sph_minus, n_samples * (l_max + 1) * (l_max + 1)  );
     MALLOC(DTYPE, sph, n_samples * (l_max + 1) * (l_max + 1)  );
     MALLOC(DTYPE, dsph, 3 * n_samples * (l_max + 1) * (l_max + 1)  );
-    auto sph_plus_host = std::vector<DTYPE>(n_samples * (l_max + 1) * (l_max + 1), 0.0);
-    auto sph_minus_host = std::vector<DTYPE>(n_samples * (l_max + 1) * (l_max + 1), 0.0);
     auto sph_host = std::vector<DTYPE>(n_samples * (l_max + 1) * (l_max + 1), 0.0);
     auto dsph_host = std::vector<DTYPE>(n_samples * 3 * (l_max + 1) * (l_max + 1), 0.0);
 
 
     calculator.compute_with_gradients(xyz, n_samples, sph, dsph);
     DEVICE_GET(DTYPE, dsph_host.data(), dsph, dsph_host.size());
+    FREE(sph);
 
     for (int alpha = 0; alpha < 3; alpha++) {
+        auto sph_plus_host = std::vector<DTYPE>(n_samples * (l_max + 1) * (l_max + 1), 0.0);
+        auto sph_minus_host = std::vector<DTYPE>(n_samples * (l_max + 1) * (l_max + 1), 0.0);
+
+        MALLOC(DTYPE, sph_plus, n_samples * (l_max + 1) * (l_max + 1)  );
+        MALLOC(DTYPE, sph_minus, n_samples * (l_max + 1) * (l_max + 1)  );
+
         std::vector<DTYPE> xyz_plus_host = xyz_host;
         for (int i_sample = 0; i_sample < n_samples; i_sample++) {
             xyz_plus_host[3 * i_sample + alpha] += DELTA;
@@ -72,23 +75,11 @@ bool check_gradient_call(int l_max, C<DTYPE>& calculator, const std::vector<DTYP
                 }
             }
         }
-    }
     FREE(sph_plus);
     FREE(sph_minus);
-    FREE(sph);
+    }
     FREE(dsph);
-//    printf("computing gradients \n");
-//    for (size_t i_sample = 0; i_sample < n_samples; i_sample++) {
-//        for (int i_sph = 0; i_sph < n_sph; i_sph++) {
-//            DTYPE d0 = dsph[3 * n_sph * i_sample + n_sph * 0 + i_sph];
-//            DTYPE d1 = dsph[3 * n_sph * i_sample + n_sph * 1 + i_sph];
-//            DTYPE d2 = dsph[3 * n_sph * i_sample + n_sph * 2 + i_sph];
-//                printf(
-//                    "DSPH: %e , %e , %e\n",
-//                    d0, d1, d2
-//                );
-//        }
-//    }
+    FREE(xyz);
 
     return is_passed;
 }
