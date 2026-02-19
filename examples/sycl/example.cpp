@@ -5,10 +5,14 @@
 #include "sphericart_sycl.hpp"
 #include <cmath>
 #include <cstdio>
+#include <iomanip>
 #include <iostream>
 #include <vector>
 
+#ifndef DTYPE
 #define DTYPE double
+#endif
+
 
 #include "sphericart.hpp"
 #define TOLERANCE 1e-4 // High tolerance: finite differences are inaccurate for second
@@ -16,13 +20,16 @@ int main() {
     /* ===== set up the calculation ===== */
 
     // hard-coded parameters for the example
-    size_t n_samples = 2;
+    size_t n_samples = 5;
     size_t l_max = 6;
 
     // initializes samples
     auto xyz = std::vector<DTYPE>(n_samples * 3, 0.0);
     for (size_t i = 0; i < n_samples * 3; ++i) {
         xyz[i] = (DTYPE)rand() / (DTYPE)RAND_MAX * 2.0 - 1.0;
+#ifdef PRINT_DEBUG
+        std::cout << "xyz[" << i << "]: " << xyz[i] << std::endl;
+#endif
     }
 
     // to avoid unnecessary allocations, calculators can use pre-allocated
@@ -55,7 +62,8 @@ int main() {
 //    // calculation examples
     //calculator_sycl.compute(xyz_device, n_samples, sph_device); // no gradients
     //calculator.compute(xyz, sph);                      // no gradients
-    printf("computing gradients \n");
+    std::cout   << "computing gradients \n";
+    
     calculator.compute_with_gradients(
         xyz, sph, dsph
     ); // with gradients
@@ -67,35 +75,54 @@ int main() {
     DEVICE_GET(DTYPE, sph_f.data(), sph_device, sph_f.size())
 
     int size2 = (l_max + 1) * (l_max + 1); // Size of the second+third dimensions in derivative arrays
-    DTYPE sph_error = 0.0, sph_norm = 0.0;
+    DTYPE sph_error = 0.0, sph_norm = 0.0, sph_error_h = 0.0, sph_error_h_max = 0.0;
     for (size_t i = 0; i < n_samples * (l_max + 1) * (l_max + 1); ++i) {
-            sph_error += (sph_f[i] - sph[i]) * (sph_f[i] - sph[i]);
+            sph_error_h = (sph_f[i] - sph[i]) * (sph_f[i] - sph[i]);
+            sph_error += sph_error_h;
+            if (sph_error_h > sph_error_h_max) {
+                sph_error_h_max = sph_error_h;
+            }
             sph_norm += sph[i] * sph[i];
+#ifdef PRINT_DEBUG
+            std::cout << "sph_f[" << i << "]: " << sph_f[i] << ", sph[" << i << "]: " << sph[i] << std::endl;
+#endif
             //printf("SPHERR: %e ,SPHERNOR %e\n", sph_f[i] - sph[i], sph_norm);
    }
 
-    printf("CPU vs GPU relative error SPH: %12.8e\n", sqrt(sph_error / sph_norm));
+#if 1
+    std::cout << "CPU vs GPU relative error SPH: " << std::scientific << std::setprecision(8) << sqrt(sph_error / sph_norm) << std::endl;
+    std::cout << "Maximum squared error SPH: " << std::scientific << std::setprecision(8) << sph_error_h_max << std::endl;
+#endif
 
     /* ===== check results ===== */
     DEVICE_GET(DTYPE, dsph_f.data(), dsph_device, dsph_f.size());
 
-    DTYPE dsph_error = 0.0, dsph_norm = 0.0;
+    DTYPE dsph_error = 0.0, dsph_norm = 0.0, dsph_error_h = 0.0, dsph_error_h_max = 0.0;
     int n_sph = (l_max + 1) * (l_max + 1);
     for (size_t alpha = 0; alpha < 3; alpha++) {
        for (size_t i_sample = 0; i_sample < n_samples; i_sample++) {
            for (int i_sph = 0; i_sph < n_sph; i_sph++) {
                DTYPE d0 = dsph[3 * n_sph * i_sample + n_sph * alpha + i_sph];
                DTYPE d0_f = dsph_f[3 * n_sph * i_sample + n_sph * alpha + i_sph];
+               if (dsph_error_h > dsph_error_h_max) {
+                  dsph_error_h_max = dsph_error_h;
+               }
                dsph_error += (d0 - d0_f)*(d0 - d0_f);
                dsph_norm += d0 * d0;
+#ifdef PRINT_DEBUG
+               std::cout << "d0: " << d0 << ", d0_f: " << d0_f << std::endl;
                    if (std::abs(d0 / d0_f - 1.0) > TOLERANCE) {
                        std::cout << "Wrong first derivative: " << d0 << " vs " << d0_f
                                  << std::endl;
                    }
+#endif
            }
        }
     }
-    printf("CPU vs GPU relative error DSPH: %12.8e\n", sqrt(dsph_error / dsph_norm));
+#if 1
+    std::cout << "CPU vs GPU relative error DSPH: " << std::scientific << std::setprecision(8) << sqrt(dsph_error / dsph_norm) << std::endl;
+    std::cout << "Maximum squared error DSPH: " << std::scientific << std::setprecision(8) << dsph_error_h_max << std::endl;
+#endif
 //
 
     return 0;

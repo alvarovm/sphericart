@@ -14,20 +14,25 @@
 
 #include <sycl/sycl.hpp>
 
-#define CUDA_VERSION 12040
-#define __maxnreg__(x)
+// DTYPE can be defined at configuration time via CMake (default: double)
+#ifndef DTYPE
+#define DTYPE double
+#endif
 
-#define __forceinline__ __attribute__((always_inline))
+// #define CUDA_VERSION 12040
+// #define __maxnreg__(x)
+
+// #define __forceinline__ __attribute__((always_inline))
 #define __global__ __attribute__((always_inline))
-#define __device__ __attribute__((always_inline))
-#define __host__ __attribute__((always_inline))
-#define __constant__ static constexpr
+// #define __device__ __attribute__((always_inline))
+// #define __host__ __attribute__((always_inline))
+// #define __constant__ static constexpr
 
-using cudaStream_t = sycl::queue&;
+// using cudaStream_t = sycl::queue&;
 namespace syclex = sycl::ext::oneapi;
 
-#define rnorm3d(d1,d2,d3) (1 / sycl::length(sycl::double3(d1, d2, d3)))
-#define norm3d(d1,d2,d3) (sycl::length(sycl::double3(d1, d2, d3)))
+#define rnorm3d(d1,d2,d3) (1 / sycl::length(sycl::vec<DTYPE, 3>(d1, d2, d3)))
+#define norm3d(d1,d2,d3) (sycl::length(sycl::vec<DTYPE, 3>(d1, d2, d3)))
 #define __syncthreads() (item.barrier(sycl::access::fence_space::local_space))
 #define __shfl_down_sync(mask, val, delta) sycl::shift_group_right(item.get_sub_group(), val, delta)
 
@@ -45,7 +50,7 @@ template <typename T> inline void sincos(T x, T* sptr, T* cptr) { *sptr = sycl::
 #define NAN std::numeric_limits<float>::quiet_NaN()
 
 namespace constants {
-    constexpr double pi = 3.141592653589793238462643383279502884;
+    constexpr DTYPE pi = 3.141592653589793238462643383279502884;
 }
 // Only define M_PI if not already defined (to avoid conflict)
 #ifndef M_PI
@@ -53,22 +58,22 @@ namespace constants {
 #endif
 
 namespace compat {
-  struct double3 {
-    double x, y, z;
+  struct dtype3 {
+    DTYPE x, y, z;
 
-    double3() = default;
-    double3(double x_, double y_, double z_) : x(x_), y(y_), z(z_) {}
+    dtype3() = default;
+    dtype3(DTYPE x_, DTYPE y_, DTYPE z_) : x(x_), y(y_), z(z_) {}
 
-    // sycl::vec<double, 3> to_sycl_vec() const {
-    //   return sycl::vec<double, 3>(x, y, z);
+    // sycl::vec<DTYPE, 3> to_sycl_vec() const {
+    //   return sycl::vec<DTYPE, 3>(x, y, z);
     // }
 
-    // void from_sycl_vec(const sycl::vec<double, 3>& v) {
+    // void from_sycl_vec(const sycl::vec<DTYPE, 3>& v) {
     //   x = v.x(); y = v.y(); z = v.z();
     // }
   };
 }
-using double3 = compat::double3;
+using dtype3 = compat::dtype3;
 
 template <typename T1, typename T2>
 static inline T1
@@ -186,7 +191,7 @@ private:
   mutable std::mutex m_mutex;
 
   dev_mgr() {
-    auto devices = sycl::device::get_devices(sycl::info::device_type::gpu);
+    auto devices = sycl::device::get_devices(sycl::info::device_type::SYCL_DEVICE);
     if (devices.empty()) {
       throw std::runtime_error("No SYCL GPU devices found.");
     }

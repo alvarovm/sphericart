@@ -18,6 +18,14 @@ add_subdirectory(sphericart)
 
 OPTION(SPHERICART_BUILD_TORCH "Build the torch bindings" OFF)
 OPTION(SPHERICART_BUILD_EXAMPLES "Build and run examples and benchmarks for Sphericart" OFF)
+OPTION(SPHERICART_PRINT_DEBUG "Enable debug print statements" OFF)
+set(SYCL_DEVICE "gpu" CACHE STRING "SYCL device type (cpu, gpu, accelerator, all)")
+
+if (SPHERICART_PRINT_DEBUG)
+    add_compile_definitions(PRINT_DEBUG)
+endif()
+
+add_compile_definitions(SYCL_DEVICE=${SYCL_DEVICE})
 
 if (SPHERICART_BUILD_EXAMPLES)
     add_subdirectory(examples)

@@ -60,6 +60,10 @@ OPTION(SPHERICART_ARCH_NATIVE "Try to use -march=native when compiling Sphericar
 OPTION(SPHERICART_ENABLE_CUDA "Are we building the CUDA backend of Sphericart?" ON)
 OPTION(SPHERICART_ENABLE_SYCL "Are we building the SYCL backend of Sphericart?" ON)
 
+# SYCL floating-point type: "double" or "float"
+set(SPHERICART_SYCL_DTYPE "double" CACHE STRING "Floating-point type for SYCL backend (double or float)")
+set_property(CACHE SPHERICART_SYCL_DTYPE PROPERTY STRINGS double float)
+
 set(LIB_INSTALL_DIR "lib" CACHE PATH "Path relative to CMAKE_INSTALL_PREFIX where to install libraries")
 set(BIN_INSTALL_DIR "bin" CACHE PATH "Path relative to CMAKE_INSTALL_PREFIX where to install DLL/binaries")
 set(INCLUDE_INSTALL_DIR "include" CACHE PATH "Path relative to CMAKE_INSTALL_PREFIX where to install headers")
@@ -259,7 +263,9 @@ if (SPHERICART_ENABLE_SYCL AND SYCL_COMPILER_FOUND)
         SPHERICART_USE_SYCL=1
         CL_TARGET_OPENCL_VERSION=300
         SYCL_LANGUAGE_VERSION=2020
+        DTYPE=${SPHERICART_SYCL_DTYPE}
     )
+    message(STATUS "SYCL DTYPE set to: ${SPHERICART_SYCL_DTYPE}")
 endif()
 
 set_target_properties(sphericart PROPERTIES
