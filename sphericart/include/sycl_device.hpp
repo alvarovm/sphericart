@@ -19,6 +19,18 @@
 #define DTYPE double
 #endif
 
+// SYCL_DEVICE can be defined at configuration time via CMake (default: gpu)
+// Valid values: cpu, gpu, accelerator, all
+#ifndef SYCL_DEVICE
+#error way
+#define SYCL_DEVICE gpu
+#endif
+
+// Helper macros to properly expand SYCL_DEVICE before token pasting
+#define SYCL_DEVICE_TYPE_CONCAT(x) sycl::info::device_type::x
+#define SYCL_DEVICE_TYPE(x) SYCL_DEVICE_TYPE_CONCAT(x)
+#define SYCL_DEVICE_TYPE_VALUE SYCL_DEVICE_TYPE(SYCL_DEVICE)
+
 // #define CUDA_VERSION 12040
 // #define __maxnreg__(x)
 
@@ -191,7 +203,7 @@ private:
   mutable std::mutex m_mutex;
 
   dev_mgr() {
-    auto devices = sycl::device::get_devices(sycl::info::device_type::SYCL_DEVICE);
+    auto devices = sycl::device::get_devices(SYCL_DEVICE_TYPE_VALUE);
     if (devices.empty()) {
       throw std::runtime_error("No SYCL GPU devices found.");
     }

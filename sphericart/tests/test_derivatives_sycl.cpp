@@ -6,14 +6,16 @@
 #include <iostream>
 #include <vector>
 
-#include "sphericart.hpp"
 #include "sphericart_sycl.hpp"
 
+#ifndef DTYPE
 #define DTYPE double
+#endif
 #define DELTA 1e-4
 #define TOLERANCE 1e-4 // High tolerance: finite differences are inaccurate for second
          // derivatives
 
+#include "sphericart.hpp"
 template <template <typename> class C>
 bool check_gradient_call(int l_max, C<DTYPE>& calculator, const std::vector<DTYPE>& xyz_host) {
     bool is_passed = true;

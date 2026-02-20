@@ -29,8 +29,10 @@ if (SPHERICART_ENABLE_SYCL)
 #        set(CMAKE_CUDA_ARCHITECTURES native)
 #    endif()
 #
+    add_compile_definitions(SYCL_DEVICE=${SPHERICART_SYCL_DEVICE})
     add_executable(example_sycl sycl/example.cpp)
     target_link_libraries(example_sycl sphericart)
+    #    target_compile_definitions(example_sycl PRIVATE SYCL_DEVICE=${SPHERICART_SYCL_DEVICE})
     add_test(NAME example_sycl COMMAND ./example_sycl)
 endif()
 
@@ -38,5 +40,7 @@ find_package(Kokkos CONFIG)
 if(Kokkos_FOUND)
     add_executable(example_kokkos kokkos/example.cpp)
     target_link_libraries(example_kokkos sphericart Kokkos::kokkos)
+    target_compile_definitions(example_kokkos PRIVATE DTYPE=${SPHERICART_SYCL_DTYPE})
     add_test(NAME example_kokkos COMMAND ./example_kokkos)
 endif()
+

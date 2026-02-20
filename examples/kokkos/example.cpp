@@ -23,7 +23,9 @@
 #include <cstdio>
 #include <vector>
 
+#ifndef DTYPE
 #define DTYPE double
+#endif
 
 
 int main(int argc, char* argv[])

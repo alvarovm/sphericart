@@ -55,14 +55,12 @@ string(REGEX REPLACE "^[0-9]+\\.[0-9]+\\.([0-9]+).*" "\\1" SPHERICART_VERSION_PA
 OPTION(BUILD_SHARED_LIBS "Build shared libraries instead of static ones" OFF)
 
 OPTION(SPHERICART_BUILD_TESTS "Build and run tests for Sphericart" OFF)
-OPTION(SPHERICART_OPENMP "Try to use OpenMP when compiling Sphericart" ON)
+OPTION(SPHERICART_OPENMP "Try to use OpenMP when compiling Sphericart" OFF)
 OPTION(SPHERICART_ARCH_NATIVE "Try to use -march=native when compiling Sphericart" ON)
-OPTION(SPHERICART_ENABLE_CUDA "Are we building the CUDA backend of Sphericart?" ON)
-OPTION(SPHERICART_ENABLE_SYCL "Are we building the SYCL backend of Sphericart?" ON)
+OPTION(SPHERICART_ENABLE_CUDA "Are we building the CUDA backend of Sphericart?" OFF)
+OPTION(SPHERICART_ENABLE_SYCL "Are we building the SYCL backend of Sphericart?" OFF)
 
-# SYCL floating-point type: "double" or "float"
-set(SPHERICART_SYCL_DTYPE "double" CACHE STRING "Floating-point type for SYCL backend (double or float)")
-set_property(CACHE SPHERICART_SYCL_DTYPE PROPERTY STRINGS double float)
+
 
 set(LIB_INSTALL_DIR "lib" CACHE PATH "Path relative to CMAKE_INSTALL_PREFIX where to install libraries")
 set(BIN_INSTALL_DIR "bin" CACHE PATH "Path relative to CMAKE_INSTALL_PREFIX where to install DLL/binaries")
@@ -101,58 +99,58 @@ endif()
 # Find SYCL
 if (SPHERICART_ENABLE_SYCL)
     # Find Intel oneAPI Base Toolkit
-#    if(NOT DEFINED ONEAPI_ROOT)
-#        if(DEFINED ENV{ONEAPI_ROOT})
-#            set(ONEAPI_ROOT $ENV{ONEAPI_ROOT})
-#        else()
-#            set(ONEAPI_ROOT "/opt/intel/oneapi")
-#        endif()
-#    endif()
-#
-#    # Source Intel oneAPI environment if available
-#    if(EXISTS "${ONEAPI_ROOT}/setvars.sh")
-#        execute_process(
-#            COMMAND bash -c "source ${ONEAPI_ROOT}/setvars.sh > /dev/null 2>&1 && env"
-#            OUTPUT_VARIABLE ONEAPI_ENV
-#        )
-#        string(REGEX MATCHALL "([^=\n]+)=([^\n]*)" ONEAPI_ENV_MATCHES "${ONEAPI_ENV}")
-#        foreach(MATCH ${ONEAPI_ENV_MATCHES})
-#            string(REGEX REPLACE "([^=\n]+)=([^\n]*)" "\\1" KEY "${MATCH}")
-#            string(REGEX REPLACE "([^=\n]+)=([^\n]*)" "\\2" VALUE "${MATCH}")
-#            set(ENV{${KEY}} ${VALUE})
-#        endforeach()
-#    endif()
-#
-#    # Check for Intel SYCL compiler
-#    if(CMAKE_CXX_COMPILER_ID MATCHES "IntelLLVM")
-#        set(SYCL_COMPILER_FOUND TRUE)
-#    else()
-#        find_program(SYCL_COMPILER icpx)
-#        if(SYCL_COMPILER)
-#            set(SYCL_COMPILER_FOUND TRUE)
-#            set(CMAKE_CXX_COMPILER ${SYCL_COMPILER})
-#        endif()
-#    endif()
-#
-#    if(SYCL_COMPILER_FOUND)
-#        message(STATUS "Found SYCL compiler: ${CMAKE_CXX_COMPILER}")
-#        
-#        # Add SYCL include directories
-#        find_path(SYCL_INCLUDE_DIR
-#            NAMES 
-#                "CL/sycl.hpp"
-#                "sycl/sycl.hpp"
-#            PATHS
-#            "${ONEAPI_ROOT}/compiler/latest/linux/include"
-#            "${ONEAPI_ROOT}/compiler/latest/include"
-#            "/opt/intel/oneapi/compiler/latest/linux/include"
-#            "/opt/intel/oneapi/compiler/latest/include"
-#            "/usr/include"
-#            "/usr/local/include"
-#            ENV CPLUS_INCLUDE_PATH
-#        )
-#        
-#        if(SYCL_INCLUDE_DIR)
+    if(NOT DEFINED ONEAPI_ROOT)
+        if(DEFINED ENV{ONEAPI_ROOT})
+            set(ONEAPI_ROOT $ENV{ONEAPI_ROOT})
+        else()
+            set(ONEAPI_ROOT "/opt/intel/oneapi")
+        endif()
+    endif()
+
+    # Source Intel oneAPI environment if available
+    if(EXISTS "${ONEAPI_ROOT}/setvars.sh")
+        execute_process(
+            COMMAND bash -c "source ${ONEAPI_ROOT}/setvars.sh > /dev/null 2>&1 && env"
+            OUTPUT_VARIABLE ONEAPI_ENV
+        )
+        string(REGEX MATCHALL "([^=\n]+)=([^\n]*)" ONEAPI_ENV_MATCHES "${ONEAPI_ENV}")
+        foreach(MATCH ${ONEAPI_ENV_MATCHES})
+            string(REGEX REPLACE "([^=\n]+)=([^\n]*)" "\\1" KEY "${MATCH}")
+            string(REGEX REPLACE "([^=\n]+)=([^\n]*)" "\\2" VALUE "${MATCH}")
+            set(ENV{${KEY}} ${VALUE})
+        endforeach()
+    endif()
+
+    # Check for Intel SYCL compiler
+    if(CMAKE_CXX_COMPILER_ID MATCHES "IntelLLVM")
+        set(SYCL_COMPILER_FOUND TRUE)
+    else()
+        find_program(SYCL_COMPILER icpx)
+        if(SYCL_COMPILER)
+            set(SYCL_COMPILER_FOUND TRUE)
+            set(CMAKE_CXX_COMPILER ${SYCL_COMPILER})
+        endif()
+    endif()
+
+    #    if(SYCL_COMPILER_FOUND)
+        message(STATUS "Found SYCL compiler: ${CMAKE_CXX_COMPILER}")
+        
+        # Add SYCL include directories
+        find_path(SYCL_INCLUDE_DIR
+            NAMES 
+                "CL/sycl.hpp"
+                "sycl/sycl.hpp"
+            PATHS
+            "${ONEAPI_ROOT}/compiler/latest/linux/include"
+            "${ONEAPI_ROOT}/compiler/latest/include"
+            "/opt/intel/oneapi/compiler/latest/linux/include"
+            "/opt/intel/oneapi/compiler/latest/include"
+            "/usr/include"
+            "/usr/local/include"
+            ENV CPLUS_INCLUDE_PATH
+        )
+        
+#       if(SYCL_INCLUDE_DIR)
             message(STATUS "Found SYCL include directory: ${SYCL_INCLUDE_DIR}")
             include_directories(${SYCL_INCLUDE_DIR} ${SYCL_INCLUDE_DIR}/..)
             
@@ -164,6 +162,8 @@ if (SPHERICART_ENABLE_SYCL)
             add_definitions(-DSPHERICART_USE_SYCL=1)
             add_definitions(-DCL_TARGET_OPENCL_VERSION=300)
             add_definitions(-DSYCL_LANGUAGE_VERSION=2020)
+	    add_definitions(-DTYPE=${SPHERICART_SYCL_DTYPE})
+	           add_definitions(-DSYCL_DEVICE=${SPHERICART_SYCL_DEVICE})
             
             # Add source files
             list(APPEND COMMON_SOURCES 
@@ -238,6 +238,9 @@ if (CMAKE_CUDA_COMPILER AND SPHERICART_ENABLE_CUDA)
     file(REMOVE "${CMAKE_CURRENT_BINARY_DIR}/generated/tmp.cuh")
 endif()
 
+if (SYCL_COMPILER_FOUND AND NOT SPHERICART_ENABLE_SYCL)
+	message(STATUS "Found a SYCL compiler but SPHERICART_ENABLE_SYCL=OFF, set SPHERICART_ENABLE_SYCL=ON in order to compile with CUDA support.")
+endif()
 # Configure SYCL if enabled
 if (SPHERICART_ENABLE_SYCL AND SYCL_COMPILER_FOUND)
     message(STATUS "Configuring SYCL target properties")
@@ -264,8 +267,10 @@ if (SPHERICART_ENABLE_SYCL AND SYCL_COMPILER_FOUND)
         CL_TARGET_OPENCL_VERSION=300
         SYCL_LANGUAGE_VERSION=2020
         DTYPE=${SPHERICART_SYCL_DTYPE}
+        SYCL_DEVICE=${SPHERICART_SYCL_DEVICE}
     )
     message(STATUS "SYCL DTYPE set to: ${SPHERICART_SYCL_DTYPE}")
+    message(STATUS "SYCL DEVICE set to: ${SPHERICART_SYCL_DEVICE}")
 endif()
 
 set_target_properties(sphericart PROPERTIES
