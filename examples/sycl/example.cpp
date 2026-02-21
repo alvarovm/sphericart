@@ -20,8 +20,8 @@ int main() {
     /* ===== set up the calculation ===== */
 
     // hard-coded parameters for the example
-    size_t n_samples = 10;
-    size_t l_max = 8;
+    size_t n_samples = 1000;
+    size_t l_max = 6;
 
     int size2; 
 
@@ -58,7 +58,7 @@ int main() {
     std::fill(dsph_f.begin(), dsph_f.end(), 0.0);  
     // std::fill(ddsph_f.begin(), ddsph_f.end(), 0.0);
 
-    if(0)
+    if(1)
     { //scope 1
         // initializes device vectors
     DEVICE_INIT(DTYPE, xyz_device, xyz_f.data(), xyz_f.size())
